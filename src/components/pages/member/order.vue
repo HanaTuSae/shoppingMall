@@ -26,6 +26,7 @@
           :list="addressList"
           @add="onAdd"
           @edit="onEdit"
+          @select="onSelect"
         />
       </van-popup>
       <van-popup style="height:100%;width:100%;" v-model="showAddressEdit" position="right">
@@ -45,7 +46,6 @@
           :is-saving="false"
           :is-deleting="false"
           :validator="/^1[34578]\d{9}$/"
-          :search-result="searchResult"
           @save="onSave"
           @delete="onDelete"
           @change-detail="onChangeDetail"
@@ -96,26 +96,28 @@ export default {
       goodsList: [], // 商品列表
       totalPrice: 0, // 总价格
       currentChosenAddressId: '1', // 当前选择的地址id
+      currentChosenAddressIndex: '0', // 当前选择的地址索引
+      currentEditAddressId: '', // 当前编辑的地址索引
       showAddressList: false, // 是否显示地址列表
       showAddressEdit: false, // 是否打开地址编辑
       isLoading: false, // 防止多次提交
       addressData: [], // 地址列表
-      areaList: areaList,
-      searchResult: [],
-      addressEdit: {},
-      currentEditAddressId: '',
+      areaList: areaList, // 省市区 列表
+      // searchResult: [], // 详细地址
+      addressEdit: {}, // 地址信息，新增为{}，编辑为点击对应的地址信息
       isAdd: true // 判断是否新增，true为是，false为否
     }
   },
   computed: {
     // 当前选择的联系人
     currentChooseContact () {
-      return this.addressList.length > 0 ? `${this.addressList[0].name}，${this.addressList[0].tel}` : '没有可选择的地址，请添加'
+      return this.addressList.length > 0 ? `${this.addressList[this.currentChosenAddressIndex].name}，${this.addressList[this.currentChosenAddressIndex].tel}` : '没有可选择的地址，请添加'
     },
     // 当前选择的地址
     currentChooseAddress () {
-      return this.addressList.length > 0 ? this.addressList[0].address : ''
+      return this.addressList.length > 0 ? this.addressList[this.currentChosenAddressIndex].address : ''
     },
+    // 地址列表格式化
     addressList () {
       let addressList = []
       if (this.addressData.length > 0) {
@@ -150,6 +152,7 @@ export default {
     }
   },
   methods: {
+    // 返回上一页
     goBack () {
       this.$dialog.confirm({
         message: '您确定要残忍离开吗？',
@@ -161,6 +164,7 @@ export default {
         console.log(error)
       })
     },
+    // 获取地址列表
     getAddressList () {
       let {token} = JSON.parse(localStorage.userInfo)
       let config = {
@@ -172,23 +176,39 @@ export default {
       }
       this.axios(config).then((res) => {
         // console.log(res.data)
-        this.addressData.push(res.data.message[0])
+        this.addressData = res.data.message
       }).catch((error) => {
         console.log(error)
       })
     },
+    // 下订单
     onSubmit () {
+      // 打开loading，防止多次点击请求
       this.isLoading = true
       setTimeout(() => {
-        this.$toast('提交成功')
+        this.$toast.success({
+          message: '购买成功',
+          duration: 1000
+        })
+        // 删除购物车中的商品
+        // 获取购物车的商品
+        let cart = JSON.parse(localStorage.getItem('cartInfo'))
+        // 循环goodsList，使用findIndex比较goodsId获取index，删除商品
+        this.goodsList.forEach(item => {
+          cart.splice(cart.findIndex(o => item.goodId === o.goodId), 1)
+        })
+        // 将商品重新存入本地
+        localStorage.setItem('cartInfo', JSON.stringify(cart))
         this.isLoading = false
-      }, 3000)
+      }, 1000)
     },
+    // 打开新增商品页面
     onAdd () {
       this.showAddressEdit = true
       this.isAdd = true
       this.addressEdit = {}
     },
+    // 打开编辑界面
     onEdit (item) {
       let address = this.addressData.filter(data => data.id === item.id)
       let { name, tel, province, city, county, addressDetail, areaCode, postalCode, isDefault } = address[0]
@@ -207,11 +227,18 @@ export default {
       this.isAdd = false
       this.showAddressEdit = true
     },
+    // 选择地址
+    onSelect (item, index) {
+      this.currentChosenAddressId = item.id
+      this.currentChosenAddressIndex = index
+    },
+    // 保存地址
     onSave (content) {
-      // console.log(content)
+      // 获取地址信息
       let { name, tel, province, city, county, addressDetail, areaCode, postalCode, isDefault } = content
+      // 判断是否新增
       if (this.isAdd) {
-        let {token} = JSON.parse(localStorage.userInfo)
+        let {token} = JSON.parse(localStorage.getItem('userInfo'))
         let config = {
           url: url.addAddress,
           method: 'post',

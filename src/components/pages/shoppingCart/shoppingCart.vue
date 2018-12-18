@@ -200,6 +200,7 @@ export default {
     goBack () {
       this.$router.back(-1)
     },
+    // 获取推荐商品
     getRecommend () {
       // 请求参数
       let config = {
@@ -216,15 +217,16 @@ export default {
     // 获取本地购物车信息
     getCartInfo () {
       // 判断本地是否存在cartInfo信息
-      if (localStorage.cartInfo) {
+      let cart = localStorage.getItem('cartInfo')
+      if (cart.length > 0) {
         let newShoppingCart = JSON.parse(localStorage.cartInfo)
+        // 判断是否新增了商品，是则把全选取消
         if (this.shoppingCart.length < newShoppingCart.length) {
           this.checkedFinish = false
         }
         // 转换为对象格式并赋值
         this.shoppingCart = newShoppingCart
       }
-      // this.isEmpty = this.shoppingCart.length > 0
     },
     // 商品数量+1
     addNum (index) {
@@ -254,19 +256,11 @@ export default {
       if (this.rightText) {
         // 完成状态
         // 如果全部物品勾选，则全选按钮设为true
-        if (this.checkedResultFinish.length === this.shoppingCart.length) {
-          this.checkedFinish = true
-        } else {
-          this.checkedFinish = false
-        }
+        this.checkedFinish = this.checkedResultFinish.length === this.shoppingCart.length
       } else {
         // 编辑状态
         // 如果全部物品勾选，则全选按钮设为true
-        if (this.checkedResultEdit.length === this.shoppingCart.length) {
-          this.checkedEdit = true
-        } else {
-          this.checkedEdit = false
-        }
+        this.checkedEdit = this.checkedResultEdit.length === this.shoppingCart.length
       }
     },
     // 是否勾选全选按钮
@@ -297,43 +291,22 @@ export default {
     // 结算按钮
     onSubmit () {
       // 判断是否登录
-      if (localStorage.userInfo) {
+      let token = localStorage.getItem('userInfo')
+      if (token) {
         // 判断是否选择了商品
         if (this.checkedResultFinish.length > 0) {
           // 开启loading防止多次提交
           this.isLoading = true
           // 判断是否全选商品
           if (this.checkedFinish) {
-            setTimeout(() => {
-              this.$router.push({
-                name: 'order',
-                params: {
-                  goodsList: this.shoppingCart,
-                  totalPrice: this.totalPrice
-                }
-              })
-              this.isLoading = false
-              this.checkedFinish = false
-              this.checkedResultFinish = []
-            }, 1000)
+            this.goOrder(this.shoppingCart)
           } else {
             let checkGoodsList = []
-            this.checkedResultFinish.forEach((id) => {
-              let good = this.shoppingCart.filter((item) => { return item.goodsId === id })
+            this.checkedResultFinish.forEach(id => {
+              let good = this.shoppingCart.filter(item => { return item.goodsId === id })
               checkGoodsList.push(good[0])
             })
-            setTimeout(() => {
-              this.$router.push({
-                name: 'order',
-                params: {
-                  goodsList: checkGoodsList,
-                  totalPrice: this.totalPrice
-                }
-              })
-              this.isLoading = false
-              this.checkedFinish = false
-              this.checkedResultFinish = []
-            }, 1000)
+            this.goOrder(checkGoodsList)
           }
         } else {
           this.$toast('请选择要结算的商品')
@@ -348,6 +321,22 @@ export default {
           // bus.$emit('tab', true)
         }, 1000)
       }
+    },
+    // 跳转到order页面
+    goOrder (goodsList) {
+      setTimeout(() => {
+        this.$router.push({
+          name: 'order',
+          params: {
+            goodsList,
+            totalPrice: this.totalPrice
+          }
+        })
+        // 状态初始化
+        this.isLoading = false
+        this.checkedFinish = false
+        this.checkedResultFinish = []
+      }, 1000)
     },
     // 导航栏右边文字显示
     navRight () {
