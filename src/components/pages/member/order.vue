@@ -227,7 +227,7 @@ export default {
       this.isAdd = false
       this.showAddressEdit = true
     },
-    // 选择地址
+    // 选择地址。。。。。
     onSelect (item, index) {
       this.currentChosenAddressId = item.id
       this.currentChosenAddressIndex = index
